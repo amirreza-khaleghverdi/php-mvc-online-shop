@@ -30,6 +30,12 @@ This project allows users to browse products, manage their carts, place orders, 
 - **Register**, **Login**, and **Logout** system.
 - Password validation and error handling.
 - Session-based authentication.
+---
+![MySQL](https://img.shields.io/badge/mysql-4479A1.svg?style=for-the-badge&logo=mysql&logoColor=white)
+![PHP](https://img.shields.io/badge/php-%23777BB4.svg?style=for-the-badge&logo=php&logoColor=white)
+![Architecture](https://img.shields.io/badge/Architecture-MVC-orange)
+![XAMPP](https://img.shields.io/badge/Server-XAMPP-orange)
+
 
 ---
 
@@ -37,9 +43,12 @@ This project allows users to browse products, manage their carts, place orders, 
 
 
 ## Database Setup
-1. Create a database named `cart_items`
-2. Create a database named `order_items`
-3. Create a database named `orders`
-4. Create a database named `users`
-5. Create a database named `products`
+1. Create a database with these tables
+  - `cart_items`
+  - `order_items`
+  - `orders`
+  - `users`
+  - `products`
+7. clone the repository
+8. use a server stack like xampp to run it
 
