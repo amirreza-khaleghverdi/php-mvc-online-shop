@@ -11,88 +11,87 @@ class Orders
         $this->conn = $database->get_connection();
     }
 
-    public function makeOrder($user_id , $total , $status)
+    public function makeOrder(int $customer_id, $total, string $status)
     {
-        try{
-
-            $sql = "INSERT INTO orders (user_id , total , status) VALUES (:user_id , :total , :status)";
-            $stmt=$this->conn->prepare($sql);
-            $stmt->bindValue(':user_id' , $user_id , PDO::PARAM_INT);
-            $stmt->bindValue(':total' , $total);
-            $stmt->bindValue(':status' , $status);
+        try {
+            $sql  = "INSERT INTO orders (CustomerId, TotalAmount, OrderStatus) VALUES (:customer_id, :total, :status)";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindValue(':customer_id', $customer_id, PDO::PARAM_INT);
+            $stmt->bindValue(':total',       $total);
+            $stmt->bindValue(':status',      $status);
             $stmt->execute();
             return $this->conn->lastInsertId();
-
-        } catch(Exception $e) {
+        } catch (Exception $e) {
+            $_SESSION['error'] = $e->getMessage();
             return false;
         }
     }
 
-
-
-    public function confirmOrder($order_id)
+    public function confirmOrder(int $order_id)
     {
         try {
             if (!isset($_SESSION['user_id'])) {
                 $_SESSION['error'] = "You must be logged in.";
                 return false;
             }
-    
+
             $this->conn->beginTransaction();
-    
-            // Get order items
-            $sql = "SELECT product_id, quantity FROM order_items WHERE order_id = :order_id";
+
+            // get order items
+            $sql  = "SELECT ProductID, Quantity FROM orderitem WHERE OrderID = :order_id";
             $stmt = $this->conn->prepare($sql);
             $stmt->bindValue(':order_id', $order_id, PDO::PARAM_INT);
             $stmt->execute();
             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
             if (empty($items)) {
                 $this->conn->rollBack();
                 $_SESSION['error'] = "No items found for this order.";
                 return false;
             }
-    
+
             foreach ($items as $item) {
-                $product_id = $item['product_id'];
-                $quantity = $item['quantity'];
-    
-                // Lock row for update
-                $sql = "SELECT stock FROM products WHERE id = :product_id FOR UPDATE";
+                $product_id = $item['ProductID'];
+                $quantity   = $item['Quantity'];
+
+                // check stock from inventory table
+                $sql  = "SELECT AvailableStock FROM inventory 
+                         WHERE ProductID = :product_id FOR UPDATE";
                 $stmt = $this->conn->prepare($sql);
                 $stmt->bindValue(':product_id', $product_id, PDO::PARAM_INT);
                 $stmt->execute();
-                $product = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-                if (!$product || $product['stock'] < $quantity) {
+                $inventory = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if (!$inventory || $inventory['AvailableStock'] < $quantity) {
                     $this->conn->rollBack();
                     $_SESSION['error'] = "Not enough stock for product ID: $product_id";
                     return false;
                 }
-    
-                // Reduce stock
-                $sql = "UPDATE products SET stock = stock - :quantity WHERE id = :product_id";
+
+                // reduce AvailableStock in inventory
+                $sql  = "UPDATE inventory SET AvailableStock = AvailableStock - :quantity 
+                         WHERE ProductID = :product_id";
                 $stmt = $this->conn->prepare($sql);
-                $stmt->bindValue(':quantity', $quantity, PDO::PARAM_INT);
+                $stmt->bindValue(':quantity',   $quantity,   PDO::PARAM_INT);
                 $stmt->bindValue(':product_id', $product_id, PDO::PARAM_INT);
                 $stmt->execute();
             }
-    
-            // Mark order as completed
-            $sql = "UPDATE orders SET status = 'completed' WHERE id = :order_id";
+
+            // mark order as completed
+            $sql  = "UPDATE orders SET OrderStatus = 'completed' WHERE OrderId = :order_id";
             $stmt = $this->conn->prepare($sql);
             $stmt->bindValue(':order_id', $order_id, PDO::PARAM_INT);
             $stmt->execute();
-    
-            // Clear cart
-            $sql = "DELETE FROM cart_items WHERE user_id = :user_id";
+
+            // clear cart
+            $sql  = "DELETE FROM cart WHERE CustomerID = :customer_id";
             $stmt = $this->conn->prepare($sql);
-            $stmt->bindValue(':user_id', $_SESSION['user_id'], PDO::PARAM_INT);
+            $stmt->bindValue(':customer_id', $_SESSION['user_id'], PDO::PARAM_INT);
             $stmt->execute();
-    
+
             $this->conn->commit();
             return true;
-    
+
         } catch (Exception $e) {
             $this->conn->rollBack();
             $_SESSION['error'] = "Transaction failed: " . $e->getMessage();
@@ -100,28 +99,26 @@ class Orders
         }
     }
 
-    public function cancelOrder($order_id)
+    public function cancelOrder(int $order_id)
     {
-        try{
-
-            $sql = "UPDATE orders SET status = 'cancelled' WHERE id = :order_id";
+        try {
+            $sql  = "UPDATE orders SET OrderStatus = 'cancelled' WHERE OrderId = :order_id";
             $stmt = $this->conn->prepare($sql);
             $stmt->bindValue(':order_id', $order_id, PDO::PARAM_INT);
             $stmt->execute();
             return true;
-            
-        } catch(Exception $e) {
+        } catch (Exception $e) {
             return false;
         }
     }
 
-    public function getLatestOrdersByUserId($user_id)
+    public function getLatestOrdersByUserId(int $user_id)
     {
         try {
-            $sql = "SELECT id, total, status, created_at
-                    FROM orders
-                    WHERE user_id = :id
-                    ORDER BY created_at DESC";
+            $sql  = "SELECT OrderId as id, TotalAmount as total, OrderStatus as status, OrderDate as created_at
+                     FROM orders
+                     WHERE CustomerId = :id
+                     ORDER BY OrderDate DESC";
             $stmt = $this->conn->prepare($sql);
             $stmt->bindValue(':id', $user_id, PDO::PARAM_INT);
             $stmt->execute();
@@ -131,16 +128,16 @@ class Orders
         }
     }
 
-    public function getOrderStatsByUserId($user_id)
+    public function getOrderStatsByUserId(int $user_id)
     {
         try {
-            $sql = "SELECT 
-                        SUM(status = 'pending') AS pending,
-                        SUM(status = 'completed') AS completed,
-                        SUM(status = 'cancelled') AS cancelled,
-                        COUNT(*) AS total_orders
-                    FROM orders
-                    WHERE user_id = :id";
+            $sql  = "SELECT 
+                        SUM(OrderStatus = 'pending')   AS pending,
+                        SUM(OrderStatus = 'completed') AS completed,
+                        SUM(OrderStatus = 'cancelled') AS cancelled,
+                        COUNT(*)                       AS total_orders
+                     FROM orders
+                     WHERE CustomerId = :id";
             $stmt = $this->conn->prepare($sql);
             $stmt->bindValue(':id', $user_id, PDO::PARAM_INT);
             $stmt->execute();
@@ -150,34 +147,45 @@ class Orders
         }
     }
 
-    public function getOrderById($order_id)
+    public function getOrderById(int $order_id)
     {
-        try{
-
-            $sql = "SELECT id, total, status, created_at FROM orders WHERE id = :order_id";
-            $stmt=$this->conn->prepare($sql);
-            $stmt->bindValue(':order_id' , $order_id ,PDO::PARAM_INT);
+        try {
+            $sql  = "SELECT OrderId as id, TotalAmount as total, OrderStatus as status, OrderDate as created_at 
+                     FROM orders WHERE OrderId = :order_id";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindValue(':order_id', $order_id, PDO::PARAM_INT);
             $stmt->execute();
             return $stmt->fetch(PDO::FETCH_ASSOC);
-
-        }
-        catch (Exception $e){
+        } catch (Exception $e) {
             return false;
         }
     }
 
     public function getAllOrders()
     {
-        try{
-            $sql = "SELECT * FROM orders";
-            $stmt=$this->conn->prepare($sql);
+        try {
+            $sql  = "SELECT OrderId as id, TotalAmount as total, OrderStatus as status, OrderDate as created_at, CustomerId
+                     FROM orders";
+            $stmt = $this->conn->prepare($sql);
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } 
-        catch (Exception $e) {
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+
+    public function updatePassword(string $table, string $idCol, int $id, string $hashed)
+    {
+        try {
+            $sql  = "UPDATE $table SET password = :password WHERE $idCol = :id";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindValue(':password', $hashed);
+            $stmt->bindValue(':id',       $id, PDO::PARAM_INT);
+            $stmt->execute();
+            return true;
+        } catch (Exception $e) {
             return false;
         }
     }
 }
-
 ?>

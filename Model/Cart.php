@@ -11,67 +11,34 @@ class Cart
         $this->conn = $database->get_connection();
     }
 
-    public function getCartItemsByUser($userId)
+    public function getCartItemsByUser(int $userId)
     {
         try
         {
-            $sql = "SELECT c.id, c.quantity, c.product_id, p.name, p.price, (p.price * c.quantity) AS total
-            FROM cart_items c
-            JOIN products p ON c.product_id = p.id
-            WHERE c.user_id = :user_id";
+            $sql = "SELECT c.id, c.quantity, c.ProductID, p.Title, p.Price, (p.Price * c.quantity) AS total
+                    FROM cart c
+                    JOIN product p ON c.ProductID = p.ProductID
+                    WHERE c.CustomerID = :customer_id";
             $stmt = $this->conn->prepare($sql);
-            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $stmt->bindValue(':customer_id', $userId, PDO::PARAM_INT);
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } 
-        catch(Exception $e) 
+        }
+        catch(Exception $e)
         {
             return false;
         }
     }
 
-    public function getCartItemsByRowID($rowId)
+    public function getCartItemsByRowID(int $rowId)
     {
         try
         {
-            $sql = "SELECT * FROM cart_items WHERE id = :id";
+            $sql = "SELECT * FROM cart WHERE id = :id";
             $stmt = $this->conn->prepare($sql);
-            $stmt->bindValue(':id' , $rowId , PDO::PARAM_INT);
+            $stmt->bindValue(':id', $rowId, PDO::PARAM_INT);
             $stmt->execute();
             return $stmt->fetch(PDO::FETCH_ASSOC);
-        } 
-        catch(Exception $e)
-        {
-            return false;
-        }
-    }
-
-    public function removeItem($id)
-    {
-        try
-        {
-            $sql = "DELETE FROM cart_items WHERE id=:id";
-            $stmt = $this->conn->prepare($sql);
-            $stmt->bindValue(':id' , $id , PDO::PARAM_INT);
-            $stmt->execute();
-            return $stmt;
-        }
-        catch (Exception $e)
-        {
-            return false;
-        }
-    }
-
-    public function updateCart($id , $quantity)
-    {
-        try
-        {
-            $sql = "UPDATE cart_items SET quantity = :quantity WHERE id = :id";
-            $stmt = $this->conn->prepare($sql);
-            $stmt->bindValue(':id' , $id , PDO::PARAM_INT);
-            $stmt->bindValue(':quantity' , $quantity , PDO::PARAM_INT);
-            $stmt->execute();
-            return $stmt;
         }
         catch(Exception $e)
         {
@@ -79,29 +46,69 @@ class Cart
         }
     }
 
-    public function addToCart($id)
+    public function removeItem(int $id)
     {
-        try {
-            $sql = "SELECT id FROM cart_items WHERE user_id = :user_id AND product_id = :product_id";
+        try
+        {
+            $sql = "DELETE FROM cart WHERE id = :id";
             $stmt = $this->conn->prepare($sql);
-            $stmt->bindValue(':user_id', $_SESSION['user_id'], PDO::PARAM_INT);
-            $stmt->bindValue(':product_id', $id, PDO::PARAM_INT);
+            $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+            return true;
+        }
+        catch(Exception $e)
+        {
+            return false;
+        }
+    }
+
+    public function updateCart(int $id, int $quantity)
+    {
+        try
+        {
+            $sql = "UPDATE cart SET quantity = :quantity WHERE id = :id";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindValue(':id',       $id,       PDO::PARAM_INT);
+            $stmt->bindValue(':quantity', $quantity, PDO::PARAM_INT);
+            $stmt->execute();
+            return true;
+        }
+        catch(Exception $e)
+        {
+            return false;
+        }
+    }
+
+    public function addToCart(int $productId)
+    {
+        try
+        {
+            // check if item already in cart
+            $sql = "SELECT id FROM cart WHERE CustomerID = :customer_id AND ProductID = :product_id";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindValue(':customer_id', $_SESSION['user_id'], PDO::PARAM_INT);
+            $stmt->bindValue(':product_id',  $productId,          PDO::PARAM_INT);
             $stmt->execute();
             $item = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
             if ($item) {
-                return false;
-            } else {
-                $sql = "INSERT INTO cart_items (user_id, product_id, quantity)
-                        VALUES (:user_id, :product_id, 1)";
+                // already in cart — increase quantity by 1
+                $sql = "UPDATE cart SET quantity = quantity + 1 WHERE id = :id";
                 $stmt = $this->conn->prepare($sql);
-                $stmt->bindValue(':user_id', $_SESSION['user_id'], PDO::PARAM_INT);
-                $stmt->bindValue(':product_id', $id, PDO::PARAM_INT);
+                $stmt->bindValue(':id', $item['id'], PDO::PARAM_INT);
+                $stmt->execute();
+                return true;
+            } else {
+                // not in cart — insert new row
+                $sql = "INSERT INTO cart (CustomerID, ProductID, quantity) VALUES (:customer_id, :product_id, 1)";
+                $stmt = $this->conn->prepare($sql);
+                $stmt->bindValue(':customer_id', $_SESSION['user_id'], PDO::PARAM_INT);
+                $stmt->bindValue(':product_id',  $productId,          PDO::PARAM_INT);
                 $stmt->execute();
                 return true;
             }
-        } 
-        catch (Exception $e) 
+        }
+        catch(Exception $e)
         {
             return false;
         }

@@ -11,45 +11,115 @@ class Login
         $this->conn = $database->get_connection();
     }
     
-    public function check_login($username , $password)
+    public function checkCustomerLogin(string $nationalcode, string $password)
     {
-        $sql = "SELECT * from users where name = :username LIMIT 1";
-        $stmt=$this->conn->prepare($sql);
-        $stmt->bindValue(':username' , $username);
-        $stmt->execute();
-        $user=$stmt->fetch(PDO::FETCH_ASSOC);
-
-        if($user && password_verify($password,$user['password']))
-        {
-            return $user;
-        }
-        else
-        {
+        try {
+            $sql  = "SELECT * FROM customers WHERE Nationalcode = :nationalcode LIMIT 1";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindValue(':nationalcode', $nationalcode);
+            $stmt->execute();
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+            if ($user && password_verify($password, $user['password'])) {
+                return $user;
+            }
             return false;
         }
-
+        catch (Exception $e) {
+            $_SESSION['error'] = $e->getMessage();
+            return false;
+        }
+    }
+    
+    public function checkCourierLogin(string $nationalcode, string $password)
+    {
+        try {
+            $sql  = "SELECT * FROM courier WHERE Nationalcode = :nationalcode LIMIT 1";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindValue(':nationalcode', $nationalcode);
+            $stmt->execute();
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+            if ($user && password_verify($password, $user['password'])) {
+                return $user;
+            }
+            return false;
+        }
+        catch (Exception $e) {
+            return false;
+        }
+    }
+    
+    public function checkAdminLogin(string $nationalcode, string $password)
+    {
+        try {
+            $sql  = "SELECT * FROM admin WHERE Nationalcode = :nationalcode LIMIT 1";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindValue(':nationalcode', $nationalcode);
+            $stmt->execute();
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+            if ($user && password_verify($password, $user['password'])) {
+                return $user;
+            }
+            return false;
+        }
+        catch (Exception $e) {
+            return false;
+        }
     }
 
-    public function register($username,$password)
+    public function registerCustomer($firstname, $lastname, $email, $nationalcode, $phonenumber, $password)
+    {
+        try {
+            $hash = password_hash($password, PASSWORD_DEFAULT);
+            $sql = "INSERT INTO customers (FirstName, LastName, Email, NationalCode, PhoneNumber, password) 
+                    VALUES (:firstname, :lastname, :email, :nationalcode, :phonenumber, :password)";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindValue(':firstname',    $firstname);
+            $stmt->bindValue(':lastname',     $lastname);
+            $stmt->bindValue(':email',        $email);
+            $stmt->bindValue(':nationalcode', $nationalcode);
+            $stmt->bindValue(':phonenumber',  $phonenumber);
+            $stmt->bindValue(':password',     $hash);
+            $stmt->execute();
+    
+            $id = $this->conn->lastInsertId();
+    
+            $sql  = "SELECT * FROM customers WHERE CustomerID = :id LIMIT 1";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        }
+        catch (Exception $e) {
+            $_SESSION['error'] = $e->getMessage();
+            return false;
+        }
+    }
+    
+    public function registerCourier($firstname, $lastname, $phonenumber, $password)
     {
         try {
             $hash=password_hash($password,PASSWORD_DEFAULT);
-            $sql = "INSERT INTO users (name, password) VALUES (:username, :password)";
-            $stmt=$this->conn->prepare($sql);
-            $stmt->bindValue(':username' , $username);
-            $stmt->bindValue(':password' , $hash);
-            $stmt->execute();
-            
-            $id=$this->conn->lastInsertId();
-
-            $sql="SELECT * FROM users WHERE id = :id LIMIT 1";
+            $sql = "INSERT INTO courier (Firstname, Lastname, ContactNumber, password) 
+                    VALUES (:firstname, :lastname, :ContactNumber, :password)";
             $stmt = $this->conn->prepare($sql);
-            $stmt->bindValue(':id' , $id, PDO::PARAM_INT);
+            $stmt->bindValue(':firstname',    $firstname);
+            $stmt->bindValue(':lastname',     $lastname);
+            $stmt->bindValue(':ContactNumber',  $phonenumber);
+            $stmt->bindValue(':password',     $hash);
             $stmt->execute();
-            $user=$stmt->fetch(PDO::FETCH_ASSOC);
-            return $user;
-        } 
-        catch (Exception $e) 
+    
+            $id = $this->conn->lastInsertId();
+    
+            $sql  = "SELECT * FROM courier WHERE CourierID = :id LIMIT 1";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        }
+        catch (Exception $e)
         {
             return false;
         }
@@ -74,7 +144,7 @@ class Login
         }
     }
 
-    public function get_all_users()
+    public function get_all_users() 
     {
         $sql = "SELECT * FROM users";
         $stmt=$this->conn->prepare($sql);

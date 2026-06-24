@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Order Details | OSI</title>
+  <title>Confirm Order | OSI</title>
   <link rel="stylesheet" href="Templates/style.css">
 </head>
 
@@ -24,8 +24,8 @@
 </header>
 
 <section class="hero hero--small">
-  <h1>📦 Order Details</h1>
-  <p>Order #<?php echo htmlspecialchars($order['id']); ?></p>
+  <h1>📦 Order Summary</h1>
+  <p>Please review your order before confirming</p>
 </section>
 
 <main class="account-single">
@@ -38,18 +38,9 @@
 
   <div class="single-card card">
 
-    <h2 class="card-title">🛍️ Order #<?php echo htmlspecialchars($order['id']); ?></h2>
+    <h2 class="card-title">🛍️ Order #<?php echo htmlspecialchars($order_id); ?></h2>
 
-    <div class="row">
-      <div>
-        <p><strong>📅 Date:</strong> <?php echo htmlspecialchars($order['created_at']); ?></p>
-      </div>
-      <div>
-        <p><strong>📌 Status:</strong> <?php echo htmlspecialchars($order['status']); ?></p>
-      </div>
-    </div>
-
-    <?php if (!empty($items)): ?>
+    <?php if (!empty($order_items)): ?>
       <table class="cart-table">
         <thead>
           <tr>
@@ -60,7 +51,7 @@
           </tr>
         </thead>
         <tbody>
-          <?php foreach ($items as $item): ?>
+          <?php foreach ($order_items as $item): ?>
             <tr>
               <td><?php echo htmlspecialchars($item['Title']); ?></td>
               <td><?php echo $item['quantity']; ?></td>
@@ -72,16 +63,28 @@
         <tfoot>
           <tr>
             <td colspan="3"><strong>Grand Total:</strong></td>
-            <td><strong>💲<?php echo number_format($order['total'], 2); ?></strong></td>
+            <td><strong>💲<?php echo number_format($grand_total, 2); ?></strong></td>
           </tr>
         </tfoot>
       </table>
-    <?php else: ?>
-      <p>No items found for this order.</p>
     <?php endif; ?>
 
-    <div class="payment-actions" style="margin-top:1.5rem;">
-      <a href="index.php?action=dashboard" class="continue-btn">← Back to Dashboard</a>
+    <p style="margin-top:1.5rem; text-align:center;">
+      <strong>Are you sure you want to place this order?</strong>
+    </p>
+
+    <div class="payment-actions" style="margin-top:1rem;">
+
+      <form action="index.php?action=confirm_order" method="POST" style="display:inline;">
+        <input type="hidden" name="order_id" value="<?php echo $order_id; ?>">
+        <button type="submit" class="pay-btn">✅ Yes, Confirm Order</button>
+      </form>
+
+      <form action="index.php?action=cancel_order" method="POST" style="display:inline;">
+        <input type="hidden" name="order_id" value="<?php echo $order_id; ?>">
+        <button type="submit" class="continue-btn">❌ No, Cancel</button>
+      </form>
+
     </div>
 
   </div>

@@ -1,16 +1,14 @@
 <?php
 
 require_once 'Model/Cart.php';
-require_once 'Model/Product.php';
 
 class Cartpage
-{ 
+{
     private $cart;
-    private $product;
 
-    public function __construct(Cart $cart , Product $product) {
+    public function __construct(Cart $cart)
+    {
         $this->cart = $cart;
-        $this->product = $product;
     }
 
     public function showCartpage()
@@ -20,11 +18,15 @@ class Cartpage
             header("Location: index.php?action=login");
             exit;
         }
-        else
-        {
-            $cart_items=$this->cart->getCartItemsByUser($_SESSION['user_id']);
-            include 'View/Cartpage.php';
+
+        if ($_SESSION['role'] !== 'customer') {
+            $_SESSION['error'] = "Only customers can view the cart.";
+            header("Location: index.php?action=homepage");
+            exit;
         }
+
+        $cart_items = $this->cart->getCartItemsByUser($_SESSION['user_id']);
+        include 'View/cart.php';
     }
 
     public function removeItem($id)
@@ -36,44 +38,38 @@ class Cartpage
 
     public function updateCart($quantities)
     {
-        $_SESSION['errors'] = [];
-
-        foreach($quantities as $id => $quantity)
-        {
-            $cartItem = $this->cart->getCartItemsByRowID($id);
-            $productData=$this->product->get_product_stock($cartItem['product_id']);
-            $stock=$productData['stock'];
-            $name=$productData['name'];
-
-            if($quantity>$stock)
-            {
-                $_SESSION['errors'][] = "Only $stock left for {$name}.";
-            }
-            else
-            {
-                $this->cart->updateCart($id , $quantity);
-            }
+        foreach ($quantities as $id => $quantity) {
+            if ($quantity < 1) continue;
+            $this->cart->updateCart((int)$id, (int)$quantity);
         }
-
         header("Location: index.php?action=cart");
         exit;
     }
 
-    public function addToCart($id)
+    public function addToCart($productId)
     {
-        if(isset($_SESSION['user_id']))
-        {
-            $this->cart->addToCart($id);
-            $_SESSION['message']="added to cart";
+        if (!isset($_SESSION['user_id'])) {
+            $_SESSION['error'] = "You have to login first";
+            header("Location: index.php?action=login");
+            exit;
         }
-        else
-        {
-            $_SESSION['error']="you have to login first";
+
+        if ($_SESSION['role'] !== 'customer') {
+            $_SESSION['error'] = "Only customers can add to cart.";
+            header("Location: " . $_SERVER['HTTP_REFERER']);
+            exit;
         }
-        
-        header("Location: ". $_SERVER['HTTP_REFERER']);
+
+        $result = $this->cart->addToCart((int)$productId);
+
+        if ($result) {
+            $_SESSION['message'] = "Added to cart!";
+        } else {
+            $_SESSION['error'] = "Could not add to cart, try again.";
+        }
+
+        header("Location: " . $_SERVER['HTTP_REFERER']);
         exit;
     }
 }
-
 ?>
