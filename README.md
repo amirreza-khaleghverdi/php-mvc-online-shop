@@ -239,8 +239,3 @@ After setting up you can register directly from the site as:
 | Sessions | Authentication & state management |
 
 ---
-
-## 👨‍💻 Developed By
-
-**Bakhshi — Khaleghverdi — Eyvazi**
-Alpha Version — 2026
